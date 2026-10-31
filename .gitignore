@@ -1,0 +1,21 @@
+.env
+__pycache__/
+*.pyc
+out/
+.playwright-mcp/
+
+# large third-party downloads (re-download via scripts/prep_assets.py instructions)
+assets/downloads/
+
+# demo video and edit file: upload the video to YouTube/Loom instead of committing it
+demo/*.mp4
+demo/*.blend
+demo/*.blend1
+
+# personal planning notes, not part of the product (remove these lines to publish them)
+PROMPT.md
+research/
+ideas/
+SUBMISSION.md
+BUILD_LOG.md
+VIDEO_SCRIPT.md

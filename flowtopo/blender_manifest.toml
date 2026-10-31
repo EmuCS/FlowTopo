@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "flowtopo"
+version = "0.1.0"
+name = "FlowTopo"
+tagline = "Animation-ready retopology: AI places the edge loops"
+maintainer = "Sam"
+type = "add-on"
+website = "https://github.com/"
+tags = ["Mesh", "Modeling"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+network = "Meta Model API (Muse Spark, SAM 3.1) plans the edge loops"
+files = "Renders, cache and reports in the FlowTopo data folder"
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "/.git/", "*.zip"]
