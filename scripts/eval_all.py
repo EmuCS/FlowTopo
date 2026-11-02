@@ -101,7 +101,8 @@ def summarise():
         ft = avg([r["metrics"]["aligned_pct"] for _, r in ok])
         qr = avg([r["baseline_qremeshify"]["aligned_pct"] for _, r in ok if r.get("baseline_qremeshify", {}).get("aligned_pct") is not None])
         qf = avg([r["baseline_quadriflow"]["aligned_pct"] for _, r in ok if r.get("baseline_quadriflow", {}).get("aligned_pct") is not None])
-        lines += ["", "**Average over %d meshes: FlowTopo %s%%, QRemeshify %s%%, QuadriFlow %s%% (random 33.3%%).**" % (len(ok), ft, qr, qf)]
+        lines += ["", "**Average over %d meshes: FlowTopo %s%%, QRemeshify %s%%, QuadriFlow %s%% (random 33.3%%).**" % (len(ok), ft, qr, qf),
+                  "", "Cost is the new API spend of that run. $0.0 means every call was served from the cache of an earlier run."]
         # eyes + mouth only: where a face actually deforms
         lines += ["", "## Eyes and mouth only (the deformation-critical loops)", "",
                   "| Mesh | FlowTopo | QRemeshify | QuadriFlow | Artist reference |", "|---|---|---|---|---|"]

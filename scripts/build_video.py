@@ -336,6 +336,17 @@ if cap:
     caption("Live in Blender: one click  (waiting sped up)", t, sec(5))
     t += dur
 
+# 3b2. what it saves (manual time: forum reports of ~3-4 h for a simple head, days for production heads)
+dur = sec(6)
+text("Retopology of one head", t, dur, size=40, y=0.80, color=MUTED)
+text("By hand", t, dur, size=40, x=0.30, y=0.62, color=MUTED)
+text("hours", t, dur, size=130, x=0.30, y=0.48)
+text("FlowTopo", t, dur, size=40, x=0.70, y=0.62, color=(*ACCENT, 1))
+text("~1 minute", t, dur, size=130, x=0.70, y=0.48)
+text("under $0.10 of API calls", t, dur, size=36, x=0.70, y=0.36, color=MUTED)
+rect(t, dur, W // 2 - 1, 330, 3, 420, MUTED[:3], ch=4, alpha=0.5)
+t += dur
+
 # 3c. how it works: the whole flow once
 dur = sec(8)
 pipeline(t, dur, stagger=sec(0.4))
@@ -363,7 +374,7 @@ t += dur
 dur = sec(7)
 image(D(HERO, "02_sam_masks.png"), t, dur)
 step_bar(1, t, dur)
-caption("Masks from up to 10 views, voted back onto the mesh", t, dur)
+caption("SAM 3.1 on untextured grey renders: masks lifted into 3D", t, dur)
 t += dur
 
 # 6. guides
@@ -414,15 +425,35 @@ note = ("Realistic head: FlowTopo %.1f%%, the artist's own mesh %.1f%%" % (ft, r
 bar_chart(rows, t, dur, "Edge flow around the eyes and mouth", sub, ref=(33.3, "random grid 33%"), note=note)
 t += dur
 
-# 10. Spark's review
-c = facts.get("critique")
-if c:
-    dur = sec(8)
-    image(D(HERO, "04_result_face.png"), t, dur)
+# 10. Spark's review loop, on the mesh where it made a measurable difference
+REVIEW = "lee_scan"
+pf = D(REVIEW, "pass2_facts.json")
+if os.path.isfile(pf) and os.path.isfile(D(REVIEW, "09_pass2_guides.png")):
+    p2 = json.load(open(pf))
+    reruns = kept = 0
+    for d in os.listdir(os.path.join(ROOT, "out", "runs")):
+        rp = os.path.join(ROOT, "out", "runs", d, "result.json")
+        if d.endswith("_eval3") and os.path.isfile(rp):
+            rj = json.load(open(rp))
+            if (rj.get("critique") or {}).get("rerun"):
+                reruns += 1
+                kept += bool(rj.get("pass2_kept"))
+    dur = sec(10)
+    image(side_by_side([D(REVIEW, "09_pass1_guides.png"), D(REVIEW, "09_pass2_guides.png")],
+                       os.path.join(DEMO, REVIEW, "09_pass_side_by_side.png")), t, dur)
     step_bar(4, t, dur)
-    rect(t, dur, 60, 60, W - 120, 200, PLATE, ch=4, alpha=0.85)
-    text("%s/10" % c.get("score"), t, dur, size=90, x=110 / W, y=160 / H, color=(*ACCENT, 1), align="LEFT")
-    text('"%s"' % c.get("good", "")[:200], t, dur, size=34, x=360 / W, y=160 / H, align="LEFT", wrap=0.76)
+    chip("First plan", t, dur, cx=W / 4, y=H - 190)
+    chip("After Spark's review", t, dur, cx=3 * W / 4, y=H - 190, accent=True)
+    before = {n: r for n, r, _s in p2["plan_pass1"]}
+    changes = ["%s %d→%d rings" % (n, before[n], r) for n, r, _s in p2["plan_pass2"] if n in before and r != before[n]]
+    rect(t, dur, 60, 50, W - 120, 190, PLATE, ch=4, alpha=0.88)
+    text("%s/10" % p2["score"], t, dur, size=80, x=100 / W, y=145 / H, color=(*ACCENT, 1), align="LEFT")
+    quote = p2["problems"].split(". ")[1] if ". " in p2["problems"] else p2["problems"]
+    quote = quote.split(", mouth")[0].replace("/fragmented", "") if len(quote) > 95 else quote
+    text('Spark: "%s"' % quote, t, dur, size=32, x=330 / W, y=185 / H, align="LEFT", wrap=0.78)
+    text("New plan: %s.  Kept: eyes and mouth %.1f%% → %.1f%%.  Proposals that don't help are rejected (%d of %d in the eval)." % (
+        ", ".join(changes) or "adjusted spacing", p2["pass1"], p2["pass2"], reruns - kept, reruns), t, dur, size=30, x=330 / W, y=105 / H,
+        color=MUTED, align="LEFT", wrap=0.78)
     t += dur
 
 # 11. other meshes

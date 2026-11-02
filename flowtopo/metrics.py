@@ -147,5 +147,15 @@ def _closed_loops(md, out_obj, r):
     return len(loops.closed_loops(out_obj, c_loc, n_loc, scale))
 
 
+def primary_score(m):
+    """Eyes + mouth aligned % (edge-weighted) when the mesh has them, else the overall aligned %."""
+    regs = [r for r in m.get("regions", []) if r.get("aligned_pct") is not None
+            and r["name"].split("_")[0] in ("eyes", "eye", "mouth")]
+    n = sum(r["edges"] for r in regs)
+    if n:
+        return sum(r["aligned_pct"] * r["edges"] for r in regs) / n
+    return m.get("aligned_pct") or 0.0
+
+
 def random_baseline_pct():
     return round(100.0 * (2 * ALIGN_DEG) / 90.0, 1)

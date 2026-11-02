@@ -6,7 +6,7 @@ name = "FlowTopo"
 tagline = "Animation-ready retopology: AI places the edge loops"
 maintainer = "Sam"
 type = "add-on"
-website = "https://github.com/"
+website = "https://github.com/EmuCS/FlowTopo"
 tags = ["Mesh", "Modeling"]
 
 blender_version_min = "4.2.0"

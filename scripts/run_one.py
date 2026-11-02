@@ -1,7 +1,7 @@
 """Run FlowTopo headless on one eval mesh.
 
 blender --background --python scripts/run_one.py -- <mesh_name> [--no-spark] [--no-critique] [--baselines] [--tag X]
-    [--scale X] [--smooth N] [--closed-rings] [--relax N] [qr_setting=json_value ...]   e.g. isometry=false alpha=0.0
+    [--scale X] [--smooth N] [--closed-rings] [--relax N] [--keep-both] [qr_setting=json_value ...]   e.g. isometry=false alpha=0.0
 Outputs go to out/runs/<mesh_name>[_tag]/ (renders, result.json, scene.blend).
 """
 import json
@@ -30,6 +30,7 @@ opts = pipeline.Options(
     field_smooth=int(args[args.index("--smooth") + 1]) if "--smooth" in args else 10,
     closed_rings="--closed-rings" in args,
     relax=int(args[args.index("--relax") + 1]) if "--relax" in args else 3,
+    keep_both="--keep-both" in args,
     qr={k: json.loads(v) for k, v in (a.split("=", 1) for a in args if "=" in a and not a.startswith("-"))},
 )
 out_dir = os.path.join(ROOT, "out", "runs", name + ("_" + tag if tag else ""))

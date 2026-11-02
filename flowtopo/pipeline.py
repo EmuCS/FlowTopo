@@ -35,6 +35,7 @@ class Options:
     render_extras: bool = True
     field_smooth: int = 10          # smoothing passes on each distance field (rounder rings)
     relax: int = 3                  # relax rounds after remeshing (smooth + snap back to the surface)
+    keep_both: bool = False         # demo: keep the pass-1 mesh next to pass 2 instead of deleting it
     head_pass: bool = True          # full bodies: find the head with SAM, look for face features in close-ups
     qr: dict = field(default_factory=dict)  # extra QuadPatches settings for the guided remesh
     closed_rings: bool = False     # keep only closed guide rings; tested 31 Oct: no extra loops, slightly lower score
@@ -231,12 +232,15 @@ class FlowTopoRun:
                 guided2, levels2 = self._guided_pass(feats2, sym, scale2, tag="pass2")
                 m2 = self._score(guided2, levels2)
                 self.result["metrics_pass2"] = m2
-                better = (m2.get("aligned_pct") or 0) >= (m.get("aligned_pct") or 0) - 1.0
+                self.result["metrics_pass1"] = m
+                # keep Spark's second pass only if it measurably helps the deformation-critical loops
+                better = metrics.primary_score(m2) > metrics.primary_score(m)
                 if better:
-                    self._discard(guided)
+                    if not self.opts.keep_both:
+                        self._discard(guided)
                     self.guided_obj, self.levels, self.result["metrics"] = guided2, levels2, m2
                     self.result["plan_final"] = feats2
-                else:
+                elif not self.opts.keep_both:
                     self._discard(guided2)
                 self.result["pass2_kept"] = bool(better)
 

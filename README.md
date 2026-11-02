@@ -1,8 +1,8 @@
 # FlowTopo
 
-**Animation-ready retopology for Blender. Muse Spark plans the edge loops, SAM 3.1 finds the features, and a quad remesher builds topology that bends where faces move.**
+Animation-ready retopology for Blender. Muse Spark plans the edge loops, SAM 3.1 finds the features, and a quad remesher builds topology that deforms cleanly around the eyes and mouth.
 
-AI 3D generators and scanners produce millions of meshes that are triangle soup. Automatic remeshers turn them into even quad grids, but animation needs *edge loops*: concentric rings around the eyes and mouth, and rings around limbs. Today a character artist draws those by hand. FlowTopo places them automatically.
+AI 3D generators and scanners output meshes as triangle soup. Automatic remeshers turn these into even quad grids, but animation needs edge loops: concentric rings around the eyes and mouth, and rings around the limbs. A character artist usually draws these by hand. FlowTopo places them automatically.
 
 ![FlowTopo vs QuadriFlow vs the artist's own topology](docs/side_by_side.png)
 
@@ -26,49 +26,51 @@ mesh ──► 10 grey renders ──► Muse Spark 1.3 (vision, structured outp
                         QRemeshify / QuadWild: quads that follow the guides, then a relax pass
                                      │
                                      ▼
-                        Muse Spark reviews the wireframe ──► adjusts rings/density ──► one more pass
+                        Muse Spark reviews the wireframe ──► new plan ──► second pass, kept only if it scores higher
 ```
 
-- **Muse Spark 1.3** looks at the renders and decides *what* needs loops and *how many* (structured JSON output, with an artist's reason for each). After the remesh it reviews the wireframe, scores it, and proposes adjustments that FlowTopo applies.
-- **SAM 3.1** (text-prompted segmentation) finds each feature on plain, untextured grey renders. FlowTopo projects the masks back onto the mesh with ray-cast visibility and votes across views. On a full body the face is a few pixels wide, so SAM first finds the head and FlowTopo renders close-ups of it for the face features.
-- **FlowTopo** turns regions into guide rings by cutting the mesh exactly along distance-field isolines. A geodesic Voronoi partition stops rings of neighbouring features from crossing. The result reads like an artist's topology "mask".
-- **QRemeshify** ([QuadWild](https://github.com/nicopietroni/quadwild) inside Blender) treats the rings as feature lines and builds quads along them.
+- Muse Spark 1.3 looks at the renders and decides which features need loops and how many rings each gets. It returns structured JSON with a reason for each choice. After the remesh it reviews the wireframe, scores it and can propose a new plan. FlowTopo runs that plan and keeps it only if the eyes-and-mouth score improves.
+- SAM 3.1 (text-prompted segmentation) finds each feature on plain, untextured grey renders. FlowTopo projects the masks back onto the mesh with ray-cast visibility and votes across views. On a full body the face is only a few pixels wide, so SAM finds the head first and FlowTopo renders close-ups of it for the face features.
+- FlowTopo turns the regions into guide rings by cutting the mesh along distance-field isolines. A geodesic Voronoi partition keeps the rings of neighbouring features from crossing.
+- QRemeshify ([QuadWild](https://github.com/nicopietroni/quadwild) inside Blender) treats the rings as feature lines and builds quads along them.
 
 ## Results
 
-The metric: within each feature's ring zone, the share of quad edges that run along a ring or along a spoke (within 15°). A random grid scores 33.3%; perfect concentric topology scores 100%. Full table, including bodies and a hand: [eval/EVAL.md](eval/EVAL.md).
+The metric is the share of quad edges in each feature's ring zone that run along a ring or a spoke, within 15°. A random grid scores 33.3% and perfect concentric topology scores 100%. The full table, including bodies and a hand, is in [eval/EVAL.md](eval/EVAL.md).
 
-Eyes and mouth (where a face deforms), with Muse Spark planning and reviewing every run:
+Eyes and mouth, where a face deforms most. Muse Spark planned and reviewed every run.
 
 | Mesh | FlowTopo | QRemeshify (no guides) | QuadriFlow | Artist's own topology |
 |---|---|---|---|---|
 | Blender Studio realistic head | **45.3%** | 40.5% | 38.1% | 41.7% |
 | Blender Studio sculpt head | **43.0%** | 38.8% | 34.4% | 42.4% |
 | Blender Studio low-poly head | **40.2%** | 32.1% | 33.0% | 52.7% |
-| Lee Perry-Smith head scan | **36.9%** | 32.7% | 32.6% | - |
+| Lee Perry-Smith head scan | **36.9%** | 32.7% | 32.4% | - |
 | Suzanne (creature, no template) | **45.9%** | 33.0% | 34.5% | - |
-| Stylised male body | **39.1%** | 35.7% | 37.6% | 47.2% |
-| Stylised female body | **40.8%** | 34.5% | 35.7% | 46.2% |
-| Realistic female body (face found in head close-ups) | **44.6%** | 41.2% | 27.7% | 42.8% |
-| **Average (8 meshes)** | **42.0%** | 36.1% | 34.2% | |
+| Stylised male body | **41.3%** | 35.5% | 38.6% | 47.9% |
+| Stylised female body | **42.2%** | 34.1% | 37.4% | 47.3% |
+| Realistic female body (face found in head close-ups) | **45.1%** | 41.1% | 27.8% | 42.9% |
+| **Average (8 meshes)** | **42.5%** | 36.0% | 34.5% | |
 
-All three remeshed versions get the same clean-up (a relax pass that evens out the quads and snaps them back onto the surface), so the comparison is like for like.
+All three remeshed versions get the same relax pass, which evens out the quads and snaps them back onto the surface. The comparison is like for like.
 
-- The plain remeshers sit a little above random level (33.3%). FlowTopo beats both on every mesh, 9 out of 9 including the hand and the bodies.
-- On the 6 meshes that ship with an artist's hand-made topology, FlowTopo closes about **70% of the gap** between automatic remeshing (QuadriFlow) and the artist. On 3 of the 6 it scores above the artist.
+- The plain remeshers score only slightly above a random grid. On eyes and mouth FlowTopo beats both on all 8 meshes. Across all features (eval/EVAL.md) it beats both on 8 of 9. On the stylised male body QuadriFlow is 0.7 points ahead.
+- Six of the meshes ship with an artist's hand-made topology. On these, FlowTopo closes about 70% of the gap between QuadriFlow and the artist, and scores above the artist on 3 of them.
 
-Cost of Meta API calls: about **$0.05-0.10 for a head**, up to about $0.50 for a full body with many features (SAM $0.0025 per image, Spark about $0.01 per call). Every response is cached, so reruns are free.
+A head takes about a minute in Blender. Retopologising a head by hand takes hours: about 3-4 h for a simple head and days for a production head, according to artists on [polycount](https://polycount.com/discussion/comment/1060768) and [BlenderNation](https://www.blendernation.com/2015/02/07/mechanical-elephant/).
+
+Meta API calls cost about $0.05-0.10 per head and up to about $0.50 for a full body with many features (SAM $0.0025 per image, Spark about $0.01 per call). Every response is cached, so reruns are free.
 
 ## Install (Blender 4.2+)
 
-1. Install **QRemeshify** (free, GPL): Edit > Preferences > Get Extensions, or from [github.com/ksami/QRemeshify](https://github.com/ksami/QRemeshify/releases).
+1. Install QRemeshify (free, GPL): Edit > Preferences > Get Extensions, or from [github.com/ksami/QRemeshify](https://github.com/ksami/QRemeshify/releases).
 2. Install FlowTopo: Edit > Preferences > Add-ons > Install from Disk > `dist/flowtopo-0.1.0.zip`.
-3. In the FlowTopo preferences, paste your Meta Model API key (from [dev.meta.ai](https://dev.meta.ai)). A **spend cap** is built in (default $38).
-4. Select a mesh, open the sidebar (N) > **FlowTopo** > **Retopologise**.
+3. In the FlowTopo preferences, paste your Meta Model API key from [dev.meta.ai](https://dev.meta.ai). A spend cap is built in (default $38).
+4. Select a mesh and open the sidebar (N) > FlowTopo > Retopologise.
 
-The panel shows live progress, Muse Spark's loop plan (with its reasons), Spark's review, the alignment score, and the API cost of the run. "Compare with original" toggles between input and result.
+The panel shows live progress, Muse Spark's loop plan with its reasons, Spark's review, the alignment score and the API cost of the run. "Compare with original" switches between input and result.
 
-## Headless / reproduce the eval
+## Running headless and reproducing the eval
 
 ```
 blender --background --python scripts/prep_assets.py      # builds the eval meshes (needs the CC0 base-mesh bundle)
@@ -79,9 +81,9 @@ blender --factory-startup --window-fullscreen --enable-event-simulate out/ui_cap
 blender --background --factory-startup --python scripts/build_video.py -- head_realistic lee_scan suzanne
 ```
 
-`capture_ui.py` records the real add-on in the Blender UI (window screenshots during a run) for the demo video.
+`capture_ui.py` records the add-on running in the Blender UI (window screenshots during a run) for the demo video.
 
-Set `MODEL_API_KEY` in the environment or in `.env` (never committed).
+Set `MODEL_API_KEY` in the environment or in `.env`, which is not committed.
 
 ## Repository
 
@@ -97,11 +99,13 @@ Set `MODEL_API_KEY` in the environment or in `.env` (never committed).
 | `flowtopo/loops.py` | The Alt+click test: closed edge loops around a feature |
 | `scripts/` | Eval set prep, eval runner, demo renders, video assembly |
 
-## Limitations (honest)
+## Limitations
 
-- Faces work best. Full bodies get limb rings marching up from hands and feet; joint-specific loops (elbow, knee) are next. On full bodies the eyes are only a few quads wide.
-- **Few closed loops.** FlowTopo usually gets one closed edge loop around each eye and the mouth; plain remeshers get none, and artists place 10-16. The reason is quad size: QuadWild keeps quads the same size, so it inserts poles between rings of different radius to change the edge count, and every pole breaks a loop. We tried closed-only guides, smoother fields and QuadWild's regularity settings (31 Oct): none added loops. Per-region density (smaller quads near the feature) is the next step.
-- The guide rings follow SAM's mask boundary, so a poor mask gives a poor ring. Multi-view voting and Spark's review catch most of these, not all.
+- Faces work best. On full bodies the limb rings run up from the hands and feet, and the eyes are only a few quads wide. Joint loops for elbows and knees are not implemented yet.
+- FlowTopo usually produces one closed edge loop around each eye and the mouth. Plain remeshers produce none, and artists place 10-16. QuadWild keeps quads the same size, so it inserts poles between rings of different radius to change the edge count, and each pole breaks a loop. Closed-only guides, smoother fields and QuadWild's regularity settings did not add loops. Per-region density, with smaller quads near the feature, is the planned fix.
+- Spark's second pass does not always help. On the head scan it raised the eyes-and-mouth score from 35.4% to 36.9%. On other meshes its proposals scored lower and were rejected.
+- Complex creatures are slow. On an AI-generated dragon head with horns, teeth and spikes, QuadWild ran for over 30 minutes without finishing, so the dragon is not in the eval.
+- The guide rings follow SAM's mask boundary, so a poor mask gives a poor ring. Multi-view voting and Spark's review catch most bad masks, but not all.
 
 ## Credits and licences
 
