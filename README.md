@@ -70,6 +70,8 @@ Meta API calls cost about $0.05-0.10 per head and up to about $0.50 for a full b
 
 The panel shows live progress, Muse Spark's loop plan with its reasons, Spark's review, the alignment score and the API cost of the run. "Compare with original" switches between input and result.
 
+Feature density (experimental, off by default) gives smaller quads around the eyes and mouth. Before remeshing, FlowTopo inflates the mesh around each feature. QuadWild then lays even quads on the inflated mesh, and every vertex is mapped back onto the original surface. At 1.2 on four test heads, closed loops around the eyes and mouth rose from 4 to 9 on the realistic head and from 3 to 7 on the sculpt head. They did not rise on Suzanne or the head scan. Alignment stayed level or rose by up to 1.7 points. The cost is a cluster of bunched quads on the nose bridge on two of the heads, which is why it is off by default.
+
 ## Running headless and reproducing the eval
 
 ```
@@ -102,7 +104,7 @@ Set `MODEL_API_KEY` in the environment or in `.env`, which is not committed.
 ## Limitations
 
 - Faces work best. On full bodies the limb rings run up from the hands and feet, and the eyes are only a few quads wide. Joint loops for elbows and knees are not implemented yet.
-- FlowTopo usually produces one closed edge loop around each eye and the mouth. Plain remeshers produce none, and artists place 10-16. QuadWild keeps quads the same size, so it inserts poles between rings of different radius to change the edge count, and each pole breaks a loop. Closed-only guides, smoother fields and QuadWild's regularity settings did not add loops. Per-region density, with smaller quads near the feature, is the planned fix.
+- FlowTopo usually produces one closed edge loop around each eye and the mouth. Plain remeshers produce none, and artists place 10-16. QuadWild keeps quads the same size, so it inserts poles between rings of different radius to change the edge count, and each pole breaks a loop. Closed-only guides, smoother fields and QuadWild's regularity settings did not add loops. The experimental feature density setting (see Install) adds some loops, but a proper fix needs per-region quad size inside the remesher.
 - Spark's second pass does not always help. On the head scan it raised the eyes-and-mouth score from 35.4% to 36.9%. On other meshes its proposals scored lower and were rejected.
 - Complex creatures are slow. On an AI-generated dragon head with horns, teeth and spikes, QuadWild ran for over 30 minutes without finishing, so the dragon is not in the eval.
 - The guide rings follow SAM's mask boundary, so a poor mask gives a poor ring. Multi-view voting and Spark's review catch most bad masks, but not all.

@@ -63,6 +63,9 @@ class FLOWTOPO_Settings(bpy.types.PropertyGroup):
                             description="Also run unguided QRemeshify and QuadriFlow and score them")
     quad_size: FloatProperty(name="Quad size", default=1.5, min=0.5, max=6.0,
                              description="Relative to the input edge length; larger = fewer quads")
+    feature_density: FloatProperty(name="Feature density (experimental)", default=0.0, min=0.0, max=1.5,
+                                   description="Smaller quads around the eyes and mouth (0 = off). Often closes more "
+                                               "edge loops, but can bunch quads on the nose bridge")
     symmetry: EnumProperty(name="Symmetry", items=[("auto", "Auto", "Muse Spark decides"),
                                                    ("on", "Mirror X", ""), ("off", "Off", "")], default="auto")
     status: StringProperty(default="")
@@ -101,7 +104,8 @@ class FLOWTOPO_OT_run(bpy.types.Operator):
         if context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
         opts = pipeline.Options(use_spark=s.use_spark, critique=s.critique and s.use_spark,
-                                baselines=s.baselines, scale=s.quad_size, symmetry=s.symmetry)
+                                baselines=s.baselines, scale=s.quad_size, symmetry=s.symmetry,
+                                density=s.feature_density)
         workdir = os.path.join(api.data_dir(), "runs", "%s_%s" % (bpy.path.clean_name(obj.name), time.strftime("%Y%m%d_%H%M%S")))
         self._run = pipeline.FlowTopoRun(obj, workdir, opts)
         self._gen = self._run.steps()
@@ -199,6 +203,7 @@ class FLOWTOPO_PT_panel(bpy.types.Panel):
         col.prop(s, "baselines")
         col.separator()
         col.prop(s, "quad_size")
+        col.prop(s, "feature_density")
         col.prop(s, "symmetry")
         layout.separator()
         row = layout.row()

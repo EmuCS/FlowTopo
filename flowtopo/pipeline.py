@@ -35,6 +35,7 @@ class Options:
     render_extras: bool = True
     field_smooth: int = 10          # smoothing passes on each distance field (rounder rings)
     relax: int = 3                  # relax rounds after remeshing (smooth + snap back to the surface)
+    density: float = 0.0            # >0: inflate around eyes/mouth before remeshing, so quads there come out smaller
     keep_both: bool = False         # demo: keep the pass-1 mesh next to pass 2 instead of deleting it
     head_pass: bool = True          # full bodies: find the head with SAM, look for face features in close-ups
     qr: dict = field(default_factory=dict)  # extra QuadPatches settings for the guided remesh
@@ -320,11 +321,34 @@ class FlowTopoRun:
         if fields:
             self.result.setdefault("seams_dropped_open", {})[tag] = getattr(guides.cut_guides, "last_dropped", 0)
         self.guided_src = src
+        orig = None
+        if self.opts.density > 0:
+            cs, ws = self._density_targets(levels)
+            if cs:
+                orig = remesh.inflate(src, cs, ws, self.opts.density)
         out, secs = remesh.qremeshify(src, use_seams=True, preprocess=self.opts.preprocess, scale=scale, symmetry_x=sym,
                                       name=self.src.name + "_FlowTopo_" + tag, qr=self.opts.qr)
-        remesh.relax(out, self.work, rounds=self.opts.relax)
+        if orig is not None:
+            remesh.relax(out, src, rounds=self.opts.relax)  # relax on the inflated surface so the density survives
+            remesh.deflate(out, src, orig)
+        else:
+            remesh.relax(out, self.work, rounds=self.opts.relax)
         self._tick("remesh_" + tag, t)
         return out, levels
+
+    def _density_targets(self, levels):
+        """Center and Gaussian width for each concentric feature: the region's centroid, and its
+        radius plus the ring zone, so the quads shrink across the whole ring zone."""
+        md, cs, ws = self.md, [], []
+        for lv in levels:
+            if lv["loop_type"] != "concentric":
+                continue
+            m = lv["mask"]
+            a = md.area[m]
+            c = (md.cent[m] * a[:, None]).sum(0) / a.sum()
+            cs.append(c)
+            ws.append(float(np.linalg.norm(md.cent[m] - c, axis=1).max()) + lv["zone_max"])
+        return cs, ws
 
     def _levels_for(self, r, f):
         if f["loop_type"] == "limb_rings":

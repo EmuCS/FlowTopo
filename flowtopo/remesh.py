@@ -95,6 +95,62 @@ def relax(obj, target, rounds=3, factor=0.5, iterations=4, smooth_shading=True):
     return obj
 
 
+def inflate(obj, centers, widths, amp):
+    """Locally inflate obj around each feature so an even-quad remesher puts smaller quads there.
+
+    Each vertex moves radially away from every center c by d * amp * exp(-(|d|/w)^2). For one
+    feature the map stays fold-free for amp < 2.2 (r * (1 + amp * exp(-r^2/w^2)) is monotone);
+    overlapping features fold earlier (amp 2.0 folded between the eyes on a head). Quads that come
+    out even on the inflated mesh are up to 1 / (1 + amp) times as long near c on the real surface.
+    Tested 4 Nov and rejected: moving only along the surface (noisy normals tangled the mesh) and
+    rescaling QuadWild's size by the change in mean edge length. Returns the original coordinates;
+    undo with deflate().
+    """
+    import numpy as np
+    me = obj.data
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    new = co.copy()
+    for c, w in zip(centers, widths):
+        d = co - np.asarray(c)
+        r2 = (d * d).sum(1) / (w * w)
+        new += d * (amp * np.exp(-r2))[:, None]
+    me.vertices.foreach_set("co", new.ravel())
+    me.update()
+    return co
+
+
+def deflate(out, src, orig_co):
+    """Map out (remeshed on the inflated src) back onto src's real surface, then restore src.
+
+    Each vertex of out finds the nearest triangle of the inflated src and keeps its barycentric
+    coordinates on the same triangle of the original src. Feature lines are src edges, so edges
+    that followed them still do.
+    """
+    import numpy as np
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    from mathutils.geometry import barycentric_transform
+    me = src.data
+    me.calc_loop_triangles()
+    tris = [tuple(t.vertices) for t in me.loop_triangles]
+    warped = [v.co.copy() for v in me.vertices]
+    orig = [Vector(p) for p in orig_co]
+    bvh = BVHTree.FromPolygons(warped, tris)
+    mw = out.matrix_world.inverted() @ src.matrix_world  # out and src share world space in practice
+    for v in out.data.vertices:
+        loc, _n, i, _d = bvh.find_nearest(mw.inverted() @ v.co)
+        if i is None:
+            continue
+        a, b, c = tris[i]
+        v.co = mw @ barycentric_transform(loc, warped[a], warped[b], warped[c], orig[a], orig[b], orig[c])
+    out.data.update()
+    me.vertices.foreach_set("co", np.asarray(orig_co).ravel())
+    me.update()
+    return out
+
+
 def quadriflow(obj, target_faces, name=None):
     """Blender's built-in QuadriFlow on a copy (baseline: even quads, no semantics)."""
     cp = obj.copy()
