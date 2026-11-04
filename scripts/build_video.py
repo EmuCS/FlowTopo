@@ -413,6 +413,19 @@ if os.path.isfile(D(HERO, "08_loops_flowtopo.png")) and os.path.isfile(D(HERO, "
     caption("The Alt+click test: select the edge loop next to the mouth", t, dur)
     t += dur
 
+# 8c. experimental feature density on the hero head (render_loops.py --out <hero>_density)
+DENS = D(HERO + "_density", "08_loops_flowtopo.png")
+if os.path.isfile(DENS) and os.path.isfile(D(HERO, "08_loops_flowtopo.png")):
+    n0 = json.load(open(D(HERO, "loops_facts.json")))["flowtopo"].get("mouth_0", 0)
+    n1 = json.load(open(D(HERO + "_density", "loops_facts.json")))["flowtopo"].get("mouth_0", 0)
+    dur = sec(9)
+    image(side_by_side([D(HERO, "08_loops_flowtopo.png"), DENS],
+                       os.path.join(DEMO, HERO, "08_density_side_by_side.png")), t, dur)
+    chip("Default: %d loop%s around the mouth" % (n0, "" if n0 == 1 else "s"), t, dur, cx=W / 4)
+    chip("Feature density: %d loops" % n1, t, dur, cx=3 * W / 4, accent=True)
+    caption("Experimental: smaller quads around the features close more loops", t, dur)
+    t += dur
+
 # 9. numbers
 dur = sec(10)
 if avg:

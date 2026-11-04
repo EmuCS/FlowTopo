@@ -1,7 +1,7 @@
 """Render the edge-loop test for the demo: closed loops around the eyes and mouth.
 
-blender --background out/runs/<name>_<tag>/scene.blend --python scripts/render_loops.py -- <name> <tag> [zoom]
-Writes out/demo/<name>/08_loops_<variant>.png (1920x1080 face close-ups) and loops_facts.json.
+blender --background out/runs/<name>_<tag>/scene.blend --python scripts/render_loops.py -- <name> <tag> [zoom] [--out DIR]
+Writes out/demo/<DIR or name>/08_loops_<variant>.png (1920x1080 face close-ups) and loops_facts.json.
 Closed loops are drawn in red. Where a mesh has no closed loop around a feature, its best
 attempt (the walk that gets furthest around before a pole stops it) is drawn in orange.
 """
@@ -17,10 +17,12 @@ sys.path.insert(0, ROOT)
 from flowtopo import loops, viz  # noqa: E402
 
 args = sys.argv[sys.argv.index("--") + 1:]
+out_dir = args[args.index("--out") + 1] if "--out" in args else None
+args = [a for i, a in enumerate(args) if a != "--out" and (i == 0 or args[i - 1] != "--out")]
 name, tag = args[0], args[1]
 zoom = float(args[2]) if len(args) > 2 else 0.78
 RUN = os.path.join(ROOT, "out", "runs", "%s_%s" % (name, tag))
-OUT = os.path.join(ROOT, "out", "demo", name)
+OUT = os.path.join(ROOT, "out", "demo", out_dir or name)
 os.makedirs(OUT, exist_ok=True)
 result = json.load(open(os.path.join(RUN, "result.json")))
 RED, ORANGE = (0.90, 0.10, 0.20), (1.0, 0.55, 0.05)
