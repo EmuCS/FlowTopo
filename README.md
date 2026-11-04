@@ -4,6 +4,10 @@ Animation-ready retopology for Blender. Muse Spark plans the edge loops, SAM 3.1
 
 AI 3D generators and scanners output meshes as triangle soup. Automatic remeshers turn these into even quad grids, but animation needs edge loops: concentric rings around the eyes and mouth, and rings around the limbs. A character artist usually draws these by hand. FlowTopo places them automatically.
 
+![A scan-style triangle mesh (left) and FlowTopo's result (right)](docs/turntable.gif)
+
+Left: the input, a scan-style triangle mesh. Right: FlowTopo's result, about a minute later.
+
 ![FlowTopo vs QuadriFlow vs the artist's own topology](docs/side_by_side.png)
 
 ## How it works
