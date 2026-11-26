@@ -15,17 +15,37 @@ args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 name = args[0] if args else "head_realistic"
 step = int(args[1]) if len(args) > 1 else 1
 DEMO = os.path.join(ROOT, "out", "demo", name)
-CROP = (170, 1070, 480, 1220)  # rows, cols of the head in the 1920x1080 turntable frames
+MARGIN = 30  # px around the head, at full resolution
 
 
-def grey(path):
+def full_grey(path):
     img = bpy.data.images.load(path)
     w, h = img.size
     px = np.empty(w * h * 4, np.float32)
     img.pixels.foreach_get(px)
     bpy.data.images.remove(img)
     px = px.reshape(h, w, 4)[::-1, :, :3]
-    y = px @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    return px @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+
+
+def head_box(paths):
+    """Union of the head's bounding box over all frames, centred horizontally on the frame."""
+    r0 = c0 = 10 ** 9
+    r1 = c1 = 0
+    for p in paths:
+        y = full_grey(p)
+        rows, cols = np.nonzero(y > y[0, 0] + 0.05)
+        r0, r1 = min(r0, rows.min()), max(r1, rows.max())
+        c0, c1 = min(c0, cols.min()), max(c1, cols.max())
+    h, w = y.shape
+    half = max(w // 2 - c0, c1 - w // 2) + MARGIN  # symmetric about the turntable axis
+    r0, r1 = max(r0 - MARGIN, 0), min(r1 + MARGIN, h)
+    c0, c1 = max(w // 2 - half, 0), min(w // 2 + half, w)
+    return r0 - (r1 - r0) % 2, r1, c0, c1 - (c1 - c0) % 2
+
+
+def grey(path):
+    y = full_grey(path)
     r0, r1, c0, c1 = CROP
     y = y[r0:r1, c0:c1]
     y = y.reshape(y.shape[0] // 2, 2, y.shape[1] // 2, 2).mean((1, 3))  # half size, box filter
@@ -93,6 +113,8 @@ def write_gif(path, frames, delay_cs):
 
 
 names = sorted(os.listdir(os.path.join(DEMO, "tt_result")))[::step]
+CROP = head_box([os.path.join(DEMO, d, n) for d in ("tt_input", "tt_result") for n in names])
+print("CROP", CROP)
 frames = []
 for n in names:
     a, b = grey(os.path.join(DEMO, "tt_input", n)), grey(os.path.join(DEMO, "tt_result", n))
